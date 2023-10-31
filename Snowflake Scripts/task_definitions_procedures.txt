@@ -1,0 +1,391 @@
+// create procedure to update dim_artist and dim_albums tables
+CREATE OR REPLACE PROCEDURE update_dim_artist_album()
+  RETURNS STRING not null
+  LANGUAGE JAVASCRIPT
+AS
+$$  
+    var cmd = 
+        "MERGE INTO spotify.public.dim_albums AS target " +
+        "USING ( " +
+        "    SELECT DISTINCT source.album_id, " +
+        "        source.album_name, " +
+        "        source.url, " +
+        "        source.release_date, " +
+        "        source.total_tracks " +
+        "    FROM " +
+        "        spotify.staging.stage AS source " +
+        ") AS source " +
+        "ON target.album_id = source.album_id " +
+        "WHEN MATCHED AND target.album_id <> source.album_id or " +
+        "                  target.album_name <> source.album_name or " +
+        "                  target.album_url <> source.url or " +
+        "                target.release_date <> source.release_date or " +
+        "                target.total_tracks <> source.total_tracks then " +
+        "    UPDATE SET " +
+        "        target.album_id = source.album_id, " +
+        "                  target.album_name = source.album_name, " +
+        "                  target.album_url = source.url, " +
+        "                target.release_date = source.release_date, " +
+        "                target.total_tracks = source.total_tracks, " +
+        "                target.effective_date = current_date() " +
+        "when not matched then insert " +
+        "(target.album_id,target.album_name, target.album_url, target.release_date,target.total_tracks,target.effective_date) " +
+        "values(source.album_id,source.album_name,source.url,source.release_date,source.total_tracks,current_date());";
+
+
+var cmd1 =
+    "INSERT INTO spotify.public.dim_artist (artist_id, artist_name,artist_image_url, effective_date, expiry_date, is_current) " +
+    "SELECT DISTINCT " +
+    "    source.artist_id, " +
+    "    source.artist_name, " +
+    "    source.artist_image_url, " +
+    "    CURRENT_DATE(), " +
+    "    '9999-12-31', " +
+    "    TRUE " +
+    "FROM spotify.staging.stage AS source " +
+    "LEFT JOIN spotify.public.dim_artist AS target " +
+    "ON source.artist_name = target.artist_name " +
+    "WHERE target.artist_name IS NULL;";
+    
+var cmd2 =
+    "MERGE INTO spotify.public.dim_artist AS target " +
+    "USING ( " +
+    "    SELECT " +
+    "        artist_id, " +
+    "        artist_name, " +
+    "        artist_image_url  " +
+    "    FROM " +
+    "        spotify.staging.stage " +
+    ") AS source " +
+    "ON target.artist_id = source.artist_id " +
+    "WHEN MATCHED AND target.artist_name <> source.artist_name THEN " +
+    "    UPDATE SET " +
+    "        target.expiry_date = CURRENT_DATE(), " +
+    "        target.is_current = FALSE;";
+
+ var sql = snowflake.createStatement({sqlText:cmd});
+ var sql1 = snowflake.createStatement({sqlText:cmd1});
+ var sql2 = snowflake.createStatement({sqlText:cmd2});
+ var result = sql.execute();
+ var result1 = sql1.execute();
+ var result2 = sql2.execute();
+return "Stored procedures to update dim_artists and dim_albums executed successfully.";
+$$;
+
+
+
+// create procedure to update dim_songs, implement SCD2 to track when the song_id changes for a particular song, 
+// match song_name between source and target
+CREATE OR REPLACE PROCEDURE update_dimsongs()
+  RETURNS STRING not null
+  LANGUAGE JAVASCRIPT
+AS
+$$ 
+var cmd = `
+    INSERT INTO spotify.public.dim_songs (song_id, artist_id, song_name, effective_date)
+    SELECT DISTINCT s.song_id, s.artist_id,
+        s.song_name,
+        '2023-10-10'
+    FROM spotify.staging.stage AS s
+    LEFT JOIN spotify.public.dim_songs AS t
+    ON s.song_name = t.song_name
+    WHERE t.song_id IS NULL;
+`;
+ var sql = snowflake.createStatement({sqlText:cmd});
+ var result = sql.execute();
+return "Stored procedures to update dim_songs executed successfully.";
+$$;
+
+
+// To call the procedure
+CALL UPDATE_DIMSONGS();
+
+
+    
+// create/define procedure to implement update_transactionfact_tables
+CREATE OR REPLACE PROCEDURE SPOTIFY.PUBLIC.UPDATE_TRANSACTIONSFACT_TABLE()
+RETURNS VARCHAR(16777216)
+LANGUAGE JAVASCRIPT
+EXECUTE AS OWNER
+AS ' 
+var cmd = `
+    INSERT INTO spotify.snapshot.transaction_fact (artist_id, song_id, album_id, playlist, popularity, effective_date)
+    SELECT DISTINCT s.artist_id, s.song_id, s.album_id, s.source AS playlist, s.popularity, CURRENT_DATE() AS effective_date
+      FROM spotify.staging.stage s
+    LEFT JOIN spotify.snapshot.transaction_fact tf
+    ON s.song_id = tf.song_id
+    AND tf.effective_date = CURRENT_DATE()
+    WHERE tf.song_id IS NULL;
+`;
+ var sql = snowflake.createStatement({sqlText:cmd});
+ var result = sql.execute();
+return "Stored procedures to update transaction fact executed successfully.";
+';
+
+call update_transactionsfact_table();
+
+select * from snapshot.transaction_fact;
+truncate table snapshot.transaction_fact;
+
+DROP PROCEDURE UPDATE_TRANSACTIONSFACT_TABLES()
+
+
+
+// define views
+CREATE OR REPLACE VIEW PUBLIC.DROPPED_FROM_PLAYLIST AS
+SELECT s.song_id,
+       ds.song_name,
+       s.playlist,
+       DATEADD(DAY,-1,CURRENT_DATE()) as expiry_date
+       FROM snapshot.transaction_fact as s
+       LEFT JOIN dim_songs as ds on s.song_id = ds.song_id
+       WHERE s.effective_date = DATEADD(DAY,-1,CURRENT_DATE())
+       AND ds.song_name NOT IN (
+       SELECT ds.song_name FROM snapshot.transaction_fact as s
+       LEFT JOIN dim_songs as ds on s.song_id = ds.song_id
+       WHERE s.effective_date = CURRENT_DATE());
+
+
+
+// create view to load new release that belong to the playlists
+
+CREATE OR REPLACE VIEW new_release_inplaylist as
+select album_name, song_name, source as playlist from staging.stage where new_release = 1;
+
+select * from new_release_inplaylist;
+
+CREATE OR REPLACE PROCEDURE PUBLIC.UPDATE_DIM_AUDIOFEATURES()
+RETURNS VARCHAR(16777216)
+LANGUAGE JAVASCRIPT
+EXECUTE AS OWNER
+AS
+$$
+var cmd = `
+  UPDATE public.dim_audiofeatures AS t
+  SET
+      expiry_date = CURRENT_DATE(), 
+      is_current = FALSE
+  FROM spotify.staging.stage AS s
+  WHERE t.song_id = s.song_id
+      AND (
+          t.song_name <> s.song_name OR
+          t.uri <> s.uri OR
+          t.duration_ms <> s.duration_ms OR
+          t.danceability <> s.danceability OR
+          t.energy <> s.energy OR
+          t.key <> s.key OR
+          t.loudness <> s.loudness OR
+          t.mode <> s.mode OR
+          t.speechiness <> s.speechiness OR
+          t.acousticness <> s.acousticness OR
+          t.instrumentalness <> s.instrumentalness OR
+          t.liveness <> s.liveness OR
+          t.valence <> s.valence OR
+          t.tempo <> s.tempo OR
+          t.time_signature <> s.time_signature
+      );
+`;
+
+var cmd1 = `
+  INSERT INTO public.dim_audiofeatures (
+              song_id,
+              song_name,
+              duration_ms,
+              uri,
+              danceability,
+              energy,
+              key,
+              loudness,
+              mode,
+              speechiness,
+              acousticness,
+              instrumentalness,
+              liveness,
+              valence,
+              tempo,
+              time_signature,
+              effective_date,
+              expiry_date,
+              is_current
+          )
+          SELECT DISTINCT 
+              s.song_id,
+              s.song_name,
+              s.duration_ms,
+              s.uri,
+              s.danceability,
+              s.energy,
+              s.key,
+              s.loudness,
+              s.mode,
+              s.speechiness,
+              s.acousticness,
+              s.instrumentalness,
+              s.liveness,
+              s.valence,
+              s.tempo,
+              s.time_signature,
+              CURRENT_DATE(),
+              '9999-12-31',
+              TRUE 
+          FROM spotify.staging.stage AS s
+          LEFT JOIN public.dim_audiofeatures AS t
+          ON s.song_id = t.song_id
+          WHERE t.song_id IS NULL  -- Only insert new records
+              OR (
+                  t.song_name <> s.song_name OR
+                  t.duration_ms <> s.duration_ms OR
+                  t.uri <> s.uri OR
+                  t.danceability <> s.danceability OR
+                  t.energy <> s.energy OR
+                  t.key <> s.key OR
+                  t.loudness <> s.loudness OR
+                  t.mode <> s.mode OR
+                  t.speechiness <> s.speechiness OR
+                  t.acousticness <> s.acousticness OR
+                  t.instrumentalness <> s.instrumentalness OR
+                  t.liveness <> s.liveness OR
+                  t.valence <> s.valence OR
+                  t.tempo <> s.tempo OR
+                  t.time_signature <> s.time_signature
+              );
+`;
+
+var sql = snowflake.createStatement({ sqlText: cmd });
+var sql1 = snowflake.createStatement({ sqlText: cmd1 });
+var result = sql.execute();
+var result1 = sql1.execute();
+return "Stored procedures to update dim_audiofeatures.";
+$$; 
+
+
+
+// create the required tasks 
+CREATE OR REPLACE TASK PUBLIC.SNAPSHOT_TRANSACTIONS_TASK
+  WAREHOUSE = COMPUTE_WH 
+  COMMENT = 'After updating songs dim table'
+  AFTER UPDATE_DIMSONGS
+    as CALL UPDATE_TRANSACTIONSFACT_TABLE();
+
+// create task to update dim_artist and dim_albums tables
+CREATE OR REPLACE TASK PUBLIC.UPDATE_DIM_ARTIST_ALBUM_TASK
+  WAREHOUSE = COMPUTE_WH
+  SCHEDULE = 'USING CRON 30 5 * * * America/New_York' 
+  COMMENT =  'Task 5:30 am daily'
+  as
+  call public.update_dim_artist_album();
+
+// create task to update dim_songs tables  
+CREATE OR REPLACE TASK PUBLIC.UPDATE_DIMSONGS
+  WAREHOUSE = COMPUTE_WH
+    COMMENT = 'Runs After artist and album task is executed'
+    AFTER PUBLIC.UPDATE_DIM_ARTIST_ALBUM_TASK
+    as call update_dimsongs();
+
+    
+// create task to update dim_audiofeatures//////////////
+CREATE OR REPLACE TASK PUBLIC.UPDATE_DIM_AUDIOFEATURES
+  WAREHOUSE = COMPUTE_WH
+  COMMENT = 'Execute after artist album task is executed'
+  AFTER PUBLIC.UPDATE_DIM_ARTIST_ALBUM_TASK
+    as CALL  update_dim_audiofeatures();
+
+
+    
+//create task to truncate stage
+create or replace task PUBLIC.TRUNCATE_STAGE
+	warehouse=COMPUTE_WH
+    SCHEDULE = 'USING CRON * 6 * * * America/New_York' 
+	COMMENT='Truncate stage table at 6 AM'
+	as CALL truncate_stage();
+
+//VIEWS
+
+// Create view Dropped from playlist view
+create or replace view SPOTIFY.PUBLIC.DROPPED_FROM_PLAYLIST(
+	SONG_ID,
+	SONG_NAME,
+	PLAYLIST,
+	EXPIRY_DATE
+) as
+SELECT
+    s.song_id,
+    ds.song_name,
+    s.playlist,
+    DATEADD(DAY, -1, CURRENT_DATE()) AS expiry_date
+FROM snapshot.transaction_fact AS s
+LEFT JOIN dim_songs AS ds ON s.song_id = ds.song_id
+WHERE s.effective_date = DATEADD(DAY, -1, CURRENT_DATE())
+AND (s.song_id, s.playlist) NOT IN (
+    SELECT song_id, playlist
+    FROM snapshot.transaction_fact 
+    WHERE effective_date = CURRENT_DATE()
+);
+
+// Create view new release in playlist
+
+create or replace view SPOTIFY.PUBLIC.NEW_RELEASE_INPLAYLIST(
+	ALBUM_NAME,
+	SONG_NAME,
+	PLAYLIST
+) as
+select album_name, song_name, source as playlist from staging.stage where new_release = 1;
+    
+
+//Create view current popularity (current date)
+
+CREATE OR REPLACE VIEW SPOTIFY.PUBLIC.CURRENT_POPULARITY(
+SONG_ID,
+POPULARITY,
+PLAYLIST) AS
+SELECT
+SONG_ID,
+POPULARITY,
+PLAYLIST
+FROM SNAPSHOT.TRANSACTION_FACT 
+WHERE EFFECTIVE_DATE = CURRENT_DATE();
+
+//Create view that has data of last 10days from fact table
+CREATE OR REPLACE VIEW SPOTIFY.PUBLIC.TRANSFACT_LASTTENDAYS(
+ARTIST_ID,
+ALBUM_ID,
+SONG_ID,
+PLAYLIST,
+POPULARITY,
+EFFECTIVE_DATE
+) AS
+SELECT ARTIST_ID,ALBUM_ID,SONG_ID,PLAYLIST,POPULARITY,EFFECTIVE_DATE
+FROM SNAPSHOT.TRANSACTION_FACT
+WHERE EFFECTIVE_DATE <= CURRENT_DATE() AND EFFECTIVE_DATE> CURRENT_DATE() - 10;
+
+
+
+// Following steps are to grant previliges to manage and update tasks
+// set up TASKADMIN role
+use role securityadmin;
+create or replace role taskadmin;
+
+--set the active role to ACCOUNTADMIN before granting the execute task privilege to TASKADMIN
+use role accountadmin;
+grant execute task on account to role taskadmin;
+
+--set the active role to SECURITYADMIN to show that this role can grant a role to another role
+use role sec
+
+
+// Show task definitions and other details associated.
+SHOW TASKS;
+
+
+// to check tasks that have failed
+select *
+  from table(information_schema.task_history()) where state= 'FAILED';
+
+//Set the status of the Task to resume, update the task of the lead Task at the very last
+
+alter task update_dimsongs resume; 
+alter task update_dim_audiofeatures resume; 
+alter task snapshot_transactions_task resume;
+alter task truncate_stage resume;
+
+alter task update_dim_artist_album_task resume; --suspend to stop, this is the first task of the task tree

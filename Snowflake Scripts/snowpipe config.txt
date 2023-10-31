@@ -1,0 +1,58 @@
+// create storage integration with azure blob
+CREATE STORAGE INTEGRATION azure_storage
+TYPE = EXTERNAL_STAGE
+ENABLED = TRUE
+STORAGE_PROVIDER = AZURE
+AZURE_TENANT_ID = 'your_azure_tenantid' // can be retireved from properties on the azure portal
+STORAGE_ALLOWED_LOCATIONS = ('azure://containername.blob.core.windows.net/blobname'); // can be retrieved from blob storage properties.
+
+// create file format 
+CREATE OR REPLACE FILE FORMAT spotify.staging.fileformat_azure
+TYPE = CSV
+FIELD_DELIMITER = '\t' -- Use a tab character as the delimiter
+SKIP_HEADER = 1
+ERROR_ON_COLUMN_COUNT_MISMATCH = FALSE;
+
+//create azure stage
+create or replace stage spotify.staging.stage_azure
+storage_integration = azure_storage
+URL = 'azure://containername.blob.core.windows.net/blobname'
+FILE_FORMAT = fileformat_azure;
+
+//create Azure QUEUE integration
+CREATE OR REPLACE NOTIFICATION INTEGRATION snowpipe_event
+ENABLED = True
+TYPE = QUEUE
+NOTIFICATION_PROVIDER = AZURE_STORAGE_QUEUE
+AZURE_TENANT_ID = 'your_azure_tenantid'
+AZURE_STORAGE_QUEUE_PRIMARY_URI = 'https://containername.blob.core.windows.net/quename' // can be retrieved from created Blob level Que
+
+//to see the status of the integrations
+SHOW INTEGRATIONS;
+
+
+//create snowpipe azure_pipe
+create pipe azure_pipe
+auto_ingest = true
+integration = 'SNOWPIPE_EVENT'
+as
+copy into spotify.staging.stage
+from @spotify.staging.stage_azure;
+
+// to truncate stage
+truncate table stage
+
+
+//show files in the blob storage.
+List @spotify.staging.stage_azure;
+
+DROP PIPE IF EXISTS azure_pipe;
+
+// to refresh snowpipe
+ALTER PIPE azure_pipe refresh;
+
+//check status of the pipe and errors if any
+select SYSTEM$PIPE_STATUS('AZURE_PIPE');
+
+
+

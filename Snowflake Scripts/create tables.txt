@@ -1,0 +1,119 @@
+//create schema staging
+CREATE SCHEMA spotify.staging
+
+
+// create stage table in staging schema
+CREATE OR REPLACE TABLE STAGING.STAGE
+(
+  album_id STRING,
+  album_name STRING,
+  release_date DATE, -- Assuming release_date is a date
+  total_tracks INTEGER,
+  url STRING,
+  song_id STRING,
+  song_name STRING,
+  duration_ms INTEGER,
+  popularity INTEGER,
+  song_added TIMESTAMP, -- Assuming song_added is a timestamp
+  artist_id STRING,
+  uri STRING,
+  artist_name STRING,
+  external_url STRING,
+  danceability FLOAT,
+  energy FLOAT,
+  key INTEGER,
+  loudness FLOAT, -- Assuming loudness is a float
+  mode INTEGER,
+  speechiness FLOAT, -- Assuming speechiness is a float
+  acousticness FLOAT, -- Assuming acousticness is a float
+  instrumentalness FLOAT, -- Assuming instrumentalness is a float
+  liveness FLOAT, -- Assuming liveness is a float
+  valence FLOAT, -- Assuming valence is a float
+  tempo FLOAT, -- Assuming tempo is a float
+  type STRING,
+  track_href STRING,
+  analysis_url STRING,
+  time_signature STRING,
+  source STRING,
+  new_release INTEGER,
+  artist_image_url STRING
+  );
+
+  
+// Create the dim_artist table with an auto-increment surrogate key
+CREATE or replace TABLE public.dim_artist (
+    surr_key INT AUTOINCREMENT,
+    artist_id VARCHAR PRIMARY KEY,
+    artist_name VARCHAR,
+    artist_image_url VARCHAR,
+    effective_date DATE,
+    expiry_date DATE,
+    is_current BOOLEAN DEFAULT TRUE
+);
+
+-- Create the dim_albums table with an auto-increment surrogate key
+CREATE OR REPLACE TABLE public.dim_albums (
+    surr_key INT AUTOINCREMENT,
+    album_id VARCHAR PRIMARY KEY,
+    album_name VARCHAR,
+    album_url VARCHAR,
+    release_date DATE,
+    total_tracks INT,
+    effective_date DATE
+);
+
+// Create the dim_songs table with an auto-increment surrogate key
+CREATE OR REPLACE TABLE public.dim_songs (
+    surr_key INT AUTOINCREMENT,
+    artist_id VARCHAR,
+    song_id VARCHAR PRIMARY KEY,
+    song_name VARCHAR,
+    effective_date DATE
+);
+
+
+// create the dim_audiofeatures table
+CREATE OR REPLACE TABLE public.dim_audiofeatures (
+    surr_key BIGINT AUTOINCREMENT,
+    song_id VARCHAR NOT NULL PRIMARY KEY,
+    song_name VARCHAR,
+    duration_ms INTEGER,
+    uri VARCHAR,
+    DANCEABILITY FLOAT,
+    ENERGY FLOAT,
+    KEY FLOAT,
+    LOUDNESS FLOAT,
+    MODE FLOAT,
+    SPEECHINESS FLOAT,
+    ACOUSTICNESS FLOAT,
+    INSTRUMENTALNESS FLOAT,
+    LIVENESS FLOAT,
+    VALENCE FLOAT,
+    TEMPO FLOAT,
+    TIME_SIGNATURE INT,
+    EFFECTIVE_DATE DATE,
+    expiry_date DATE,
+    is_current BOOLEAN DEFAULT TRUE
+);
+
+
+//create transaction snapshot fact table
+
+CREATE OR REPLACE TABLE spotify.snapshot.transaction_fact (
+    surr_key BIGINT AUTOINCREMENT PRIMARY KEY,
+    artist_id STRING,
+    album_id STRING,
+    song_id STRING,
+    playlist STRING,
+    popularity INTEGER,
+    effective_date DATE,
+    FOREIGN KEY (artist_id) REFERENCES spotify.public.dim_artist (artist_id),
+    FOREIGN KEY (song_id) REFERENCES spotify.public.dim_songs (song_id),
+    FOREIGN KEY (album_id) REFERENCES spotify.public.dim_albums (album_id)
+);
+
+
+
+
+
+
