@@ -13,11 +13,22 @@ The featured playlist that we are tracking for this effort are
 Access Report at: [SpotiReport](https://app.powerbi.com/view?r=eyJrIjoiYTkzMWViZmItZDM4MS00MjkxLWFjNDEtNzU3M2IxYTRkZmRlIiwidCI6IjE3ZjFhODdlLTJhMjUtNGVhYS1iOWRmLTlkNDM5MDM0YjA4MCIsImMiOjF9)
 
 ## Report Walkthrough
+![image](https://github.com/saldanhad/SpotiReport/blob/main/Miscellaneous/powerbitutorial.gif?raw=true)
 
 ## ETL process flow diagram
+* The new data is first gathered and stored in an azure blob storage via periodic run script in Azure Databricks.
+* Next, we make you of Azure Event grid to gather Azure storage blob queues when a new file is uploaded.
+* Snowpipe is triggered as this queue is consumed in Snowflake and via the AZURE_STAGE procedure the new data is copied into a stagging table.
+* Once in the staging table various tasks are triggered based on the Task tree highlighted in the previous steps. 
+* Upon completion of the necessary ETL processes new data UPSERTED/INSERTED into the required dim and fact tables and views are updated. The Power BI report has a real-time connection to the warehouse via Direct Query.
+
+![image](https://github.com/saldanhad/SpotiReport/blob/main/Miscellaneous/dataflow%20diagram.png?raw=true)
 
 ## ER Diagram
+![image](https://github.com/saldanhad/SpotiReport/blob/main/Miscellaneous/ERdiagram.drawio.png?raw=true)
 
 ## Data Warehouse Structure
+![image](https://github.com/saldanhad/SpotiReport/blob/main/Miscellaneous/DW_arch.jpg?raw=true)
 
-## Power BI Report
+## Power BI Data Model
+![image](https://github.com/saldanhad/SpotiReport/blob/main/Miscellaneous/powerbidatamodel.jpg?raw=true{)
