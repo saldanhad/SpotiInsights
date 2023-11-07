@@ -30,17 +30,86 @@ Access Report at: [SpotiReport](https://app.powerbi.com/view?r=eyJrIjoiYTkzMWViZ
 * D – Load data into transactions snapshot fact table
 * C – Truncate Stage table
 
-![image](https://github.com/saldanhad/SpotiReport/blob/main/Miscellaneous/task_tree.png?raw=true)
+<img src="https://github.com/saldanhad/SpotiReport/raw/main/Miscellaneous/task_tree.png" alt="image" width="1000" height="500">
+
 
 
 ## ER Diagram
-![image](https://github.com/saldanhad/SpotiReport/blob/main/Miscellaneous/ERdiagram.drawio.png?raw=true)
+<img src="https://github.com/saldanhad/SpotiReport/blob/main/Miscellaneous/ERdiagram.drawio.png?raw=trueg" alt="image" width="800" height="1000">
 
 ## Data Warehouse Structure
 ![image](https://github.com/saldanhad/SpotiReport/blob/main/Miscellaneous/DW_arch.jpg?raw=true)
 
 ## Power BI Data Model
 ![image](https://github.com/saldanhad/SpotiReport/blob/main/Miscellaneous/powerbidatamodel.jpg?raw=true{)
+
+
+## DAX functions used
+
+```dax
+//create KPI table
+KPItable = 
+SUMMARIZECOLUMNS (
+    'TRANSFACT_LASTTENDAYS'[song_id],
+    "current popularity", TRANSFACT_LASTTENDAYS[Curr Popularity],
+    "prev popularity", TRANSFACT_LASTTENDAYS[Prev Popularity],
+    "KPI", TRANSFACT_LASTTENDAYS[Popularity KPI color],
+     "KPI Color",
+    IF(TRANSFACT_LASTTENDAYS[Popularity KPI color] = "#009900","Green(Increased)",
+      IF(TRANSFACT_LASTTENDAYS[Popularity KPI color]= "#ff0000","Red(Decreased)",
+            IF(TRANSFACT_LASTTENDAYS[Popularity KPI color] = "#0000ff", "Blue(Unchanged)")
+        )
+    )
+)
+
+//created data table for artist url
+ImageURL = SUMMARIZECOLUMNS (
+    'DIM_ARTIST'[ARTIST_ID],'DIM_ARTIST'[ARTIST_IMAGE_URL]
+    )
+
+//current popularity score measure
+Curr Popularity = 
+CALCULATE(
+    MAXX(
+        FILTER(
+            FILTER(
+                TRANSFACT_LASTTENDAYS,
+                TRANSFACT_LASTTENDAYS[EFFECTIVE_DATE] = MAX(TRANSFACT_LASTTENDAYS[EFFECTIVE_DATE])
+            ),
+            TRANSFACT_LASTTENDAYS[POPULARITY] <> 0
+        ),
+        TRANSFACT_LASTTENDAYS[POPULARITY]
+    )
+)
+
+//prev popularity score measure
+Prev Popularity = 
+CALCULATE(
+    MAXX(
+        FILTER(
+            TRANSFACT_LASTTENDAYS,
+            TRANSFACT_LASTTENDAYS[EFFECTIVE_DATE] = MAX(TRANSFACT_LASTTENDAYS[EFFECTIVE_DATE])- 1
+        ),
+        TRANSFACT_LASTTENDAYS[POPULARITY]
+    )
+)
+
+//Popularity KPI Color measure
+Popularity KPI color = 
+VAR CurrentPopularity = TRANSFACT_LASTTENDAYS[Curr Popularity]
+VAR PrevPopularity = TRANSFACT_LASTTENDAYS[Prev Popularity]
+RETURN
+    SWITCH(
+        TRUE(),
+        CurrentPopularity > PrevPopularity,
+        "#009900",  -- Green when current popularity is greater
+        CurrentPopularity < PrevPopularity,
+        "#ff0000", -- Red
+        CurrentPopularity = PrevPopularity,
+        "#0000ff"   -- Blue for neutral cases (neither greater nor less)
+    )
+
+```
 
 
 ### Note: Detailed documentation in attached docx file under miscellaneoua folder.
