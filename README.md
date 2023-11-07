@@ -41,3 +41,6 @@ Access Report at: [SpotiReport](https://app.powerbi.com/view?r=eyJrIjoiYTkzMWViZ
 
 ## Power BI Data Model
 ![image](https://github.com/saldanhad/SpotiReport/blob/main/Miscellaneous/powerbidatamodel.jpg?raw=true{)
+
+
+### Note: Detailed documentation in attached docs file under miscellaneoua folder.
