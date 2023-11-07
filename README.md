@@ -43,4 +43,4 @@ Access Report at: [SpotiReport](https://app.powerbi.com/view?r=eyJrIjoiYTkzMWViZ
 ![image](https://github.com/saldanhad/SpotiReport/blob/main/Miscellaneous/powerbidatamodel.jpg?raw=true{)
 
 
-### Note: Detailed documentation in attached docs file under miscellaneoua folder.
+### Note: Detailed documentation in attached docx file under miscellaneoua folder.
