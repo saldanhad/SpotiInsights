@@ -10,7 +10,7 @@ The featured playlist that we are tracking for this effort are
 * Top 50 USA Viral (https://open.spotify.com/playlist/37i9dQZEVXbKuaTI1Z1Afx)
 * Top 50 Global Viral (https://open.spotify.com/playlist/37i9dQZEVXbLiRSasKsNU9)
 
-Access Report at: [SpotiReport](https://app.powerbi.com/view?r=eyJrIjoiYTkzMWViZmItZDM4MS00MjkxLWFjNDEtNzU3M2IxYTRkZmRlIiwidCI6IjE3ZjFhODdlLTJhMjUtNGVhYS1iOWRmLTlkNDM5MDM0YjA4MCIsImMiOjF9)
+Access Report at: [SpotiReport](https://app.powerbi.com/view?r=eyJrIjoiZWViYWQ4YTYtZDEyZS00M2ZiLTg4ODgtZTg2ZGY1MDAzNDE1IiwidCI6IjE3ZjFhODdlLTJhMjUtNGVhYS1iOWRmLTlkNDM5MDM0YjA4MCIsImMiOjF9)
 
 ## Report Walkthrough
 ![image](https://github.com/saldanhad/SpotiReport/blob/main/Miscellaneous/powerbitutorial.gif?raw=true)
