@@ -34,7 +34,7 @@ Access Report at: [SpotiReport](https://app.powerbi.com/view?r=eyJrIjoiZWViYWQ4Y
 
 
 
-## ER Diagram
+## STAR Schema
 <img src="https://github.com/saldanhad/SpotiReport/blob/main/Miscellaneous/ERdiagram.drawio.png?raw=trueg" alt="image" width="800" height="1000">
 
 ## Data Warehouse Structure
@@ -112,4 +112,4 @@ RETURN
 ```
 
 
-### Note: Detailed documentation in attached docx file under miscellaneoua folder.
+### Note: Detailed documentation in attached docx file under miscellaneous folder.
