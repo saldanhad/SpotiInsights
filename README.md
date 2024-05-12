@@ -1,4 +1,4 @@
-# SpotiReport
+# SpotiInsights
 
 This GitHub repository is dedicated to a periodically updating report that leverages the Spotify API to gather data on song popularity ranks and audio feature scores from popular playlists on Spotify. The collected data is processed and stored in Snowflake, and the insights are presented in a Power BI report. This repository serves as a comprehensive solution for tracking and visualizing trends in popular music across various Spotify playlists.
 
@@ -10,9 +10,9 @@ The featured playlist that we are tracking for this effort are
 * Top 50 USA Viral (https://open.spotify.com/playlist/37i9dQZEVXbKuaTI1Z1Afx)
 * Top 50 Global Viral (https://open.spotify.com/playlist/37i9dQZEVXbLiRSasKsNU9)
 
-Access Report at: [SpotiReport](https://app.powerbi.com/view?r=eyJrIjoiZWViYWQ4YTYtZDEyZS00M2ZiLTg4ODgtZTg2ZGY1MDAzNDE1IiwidCI6IjE3ZjFhODdlLTJhMjUtNGVhYS1iOWRmLTlkNDM5MDM0YjA4MCIsImMiOjF9)
+Access Dashboard at: [Report](https://app.powerbi.com/view?r=eyJrIjoiMjdiYjU4NWQtOWQyNy00NjNlLWE3ZGEtNTNkNjExOWFkODFjIiwidCI6ImYxNDY0ZTU3LTk5ZGYtNDk2Ny04ZTkzLWQwMDBkNjM4MzFkOCIsImMiOjJ9)
 
-## Report Walkthrough
+## Dashboard Walkthrough
 ![image](https://github.com/saldanhad/SpotiReport/blob/main/Miscellaneous/powerbitutorial.gif?raw=true)
 
 ## Data Flow diagram
